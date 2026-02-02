@@ -152,7 +152,7 @@ const GenerateThumbnails = () => {
             </p>
             {/* ✅ FIXED: Added navigation to pricing */}
             <button 
-              onClick={() => navigate("/plans")}
+              onClick={() => navigate("/#plans")}
               className="mt-6 w-full bg-slate-900 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-black transition-all shadow-lg shadow-slate-200"
             >
               Unlock Studio
