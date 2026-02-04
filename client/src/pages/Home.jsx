@@ -9,12 +9,10 @@ import Plans from '../components/Plans.jsx'
 const Home = () => {
   return (
     <>
-      <Navbar />
       <Hero />
       <AiTools />
       <Testimonial />
       <Plans />
-      <Footer />
     </>
   )
 }

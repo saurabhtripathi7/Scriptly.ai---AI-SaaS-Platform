@@ -5,6 +5,8 @@ import star_icon from "./star_icon.svg";
 import star_dull_icon from "./star_dull_icon.svg";
 import profile_img_1 from "./profile_img_1.png";
 import arrow_icon from "./arrow_icon.svg";
+import about_image from "./about_image.png";
+
 import {
   SquarePen,
   Hash,
@@ -41,6 +43,7 @@ export const assets = {
   google,
   linkedin,
   instagram,
+  about_image,
 };
 
 export const AiToolsData = [

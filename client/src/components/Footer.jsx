@@ -1,35 +1,63 @@
+import React from "react";
+import { useNavigate } from "react-router-dom";
 import { assets } from "../assets/assets";
 
 const Footer = () => {
+  const navigate = useNavigate();
+
   return (
     <footer className="px-6 md:px-16 lg:px-24 xl:px-32 pt-8 w-full text-gray-500 mt-20">
       <div className="flex flex-col md:flex-row justify-between w-full gap-10 border-b border-gray-500/30 pb-6">
+        
+        {/* Logo Section */}
         <div className="md:max-w-96">
-          <img className="h-9" src={assets.logo} alt="logo" />
-          <p className="mt-6 text-sm">
-            Experience the power of AI with QuickAi. <br /> Transform you
+          <img 
+            className="h-9 cursor-pointer" 
+            src={assets.logo} 
+            alt="logo" 
+            onClick={() => navigate("/")} 
+          />
+          <p className="mt-6 text-sm leading-relaxed">
+            Experience the power of AI with Scriptly.AI <br /> Transform your
             content creation with our suite of premium AI tools. Write articles,
             generate images, and enhance your workflow.
           </p>
         </div>
+
+        {/* Links Section */}
         <div className="flex-1 flex items-start md:justify-end gap-20">
           <div>
             <h2 className="font-semibold mb-5 text-gray-800">Company</h2>
-            <ul className="text-sm space-y-2">
-              <li>
-                <a href="#">Home</a>
+            <ul className="text-sm space-y-3">
+              <li 
+                onClick={() => navigate("/")} 
+                className="cursor-pointer hover:text-violet-600 transition-colors"
+              >
+                Home
               </li>
-              <li>
-                <a href="#">About us</a>
+              <li 
+                onClick={() => navigate("/about")} 
+                className="cursor-pointer hover:text-violet-600 transition-colors"
+              >
+                About us
               </li>
-              <li>
-                <a href="#">Contact us</a>
+              <li 
+                onClick={() => navigate("/contact")} 
+                className="cursor-pointer hover:text-violet-600 transition-colors"
+              >
+                Contact us
               </li>
-              <li>
-                <a href="#">Privacy policy</a>
+              {/* Replaced Privacy Policy with Community */}
+              <li 
+                onClick={() => navigate("/ai/community")} 
+                className="cursor-pointer hover:text-violet-600 transition-colors"
+              >
+                Community
               </li>
             </ul>
           </div>
+
+          {/* Newsletter Section */}
           <div>
             <h2 className="font-semibold text-gray-800 mb-5">
               Subscribe to our newsletter
@@ -45,7 +73,7 @@ const Footer = () => {
                   type="email"
                   placeholder="Enter your email"
                 />
-                <button className="bg-primary w-24 h-9 text-white rounded cursor-pointer">
+                <button className="bg-violet-600 hover:bg-violet-700 transition-colors w-24 h-9 text-white rounded cursor-pointer font-medium">
                   Subscribe
                 </button>
               </div>
@@ -53,9 +81,15 @@ const Footer = () => {
           </div>
         </div>
       </div>
+
       <p className="pt-4 text-center text-xs md:text-sm pb-5">
         Copyright 2026 ©{" "}
-        <a target="_blank" href="https://www.linkedin.com/in/saurabhtripathicr7/">
+        <a 
+          target="_blank" 
+          rel="noopener noreferrer"
+          href="https://www.linkedin.com/in/saurabhtripathicr7/"
+          className="hover:text-violet-600 transition-colors font-medium"
+        >
           Saurabh Tripathi
         </a>
         . All Right Reserved.

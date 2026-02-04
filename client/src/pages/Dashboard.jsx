@@ -1,190 +1,149 @@
-import { useEffect, useState } from "react";
+// Dashboard.jsx - Polished UI + Load More Activity
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
-  Gem, 
-  Sparkles, 
-  History, 
-  LayoutGrid, 
-  Loader2, 
-  ArrowUpRight,
-  ShieldCheck,
-  CreditCard,
-  Zap,
-  Type,
-  ImageIcon,
-  FileText
+  Gem, History, LayoutGrid, Loader2, ArrowUpRight, 
+  CreditCard, Zap, Type, ImageIcon, FileText 
 } from "lucide-react";
-import { Protect, useAuth, useUser } from "@clerk/clerk-react";
-import CreationItem from "../components/CreationItem";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { formatDistanceToNow } from "date-fns"; // Recommended for time awareness
+import { formatDistanceToNow } from "date-fns";
 
 axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { getToken } = useAuth();
-  const { user } = useUser();
+  const { isLoaded, user } = useUser();
 
   /* ---------------- STATE ---------------- */
   const [creations, setCreations] = useState([]);
+  const [totalCount, setTotalCount] = useState(0); 
+  const [plan, setPlan] = useState("free");
   const [loading, setLoading] = useState(true);
-  const [userStats, setUserStats] = useState({
-    used: 0,
-    limit: 0,
-    isLoaded: false
-  });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [usage, setUsage] = useState({ used: 0, limit: 0, ready: false });
 
-  /* ---------------- HANDLERS ---------------- */
-  const getDashboardData = async () => {
+  /* ---------------- FETCH DASHBOARD (Initial & Refresh) ---------------- */
+  const fetchDashboard = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
       const token = await getToken();
-      
-      // Fetch both creations and usage stats for honesty
-      const { data } = await axios.get("/api/user/get-dashboard-overview", {
+
+      // We always fetch page 0 for a fresh state or "real-time" update
+      const { data } = await axios.get("/api/user/get-dashboard-overview?page=0", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (data.success) {
-        setCreations(data.creations);
-        setUserStats({
-          used: data.usage.used,
-          limit: data.usage.limit,
-          isLoaded: true
-        });
+        setCreations(data.creations || []);
+        setTotalCount(data.totalCreations || 0); 
+        setUsage({ ...data.usage, ready: true });
+        setPage(0); // Reset page counter
+        
+        const confirmedPlan = data.plan || user?.publicMetadata?.plan || "free";
+        setPlan(confirmedPlan);
       }
     } catch (error) {
-      // If backend isn't ready for stats yet, we show "Coming Soon" instead of faking it
-      setUserStats({ used: 0, limit: 0, isLoaded: false });
-      toast.error("Limited dashboard data available.");
+      console.error("Dashboard fetch error:", error);
     } finally {
       setLoading(false);
     }
+  }, [getToken, user]);
+
+  /* ---------------- LOAD MORE LOGIC (Restored) ---------------- */
+  const loadMore = async () => {
+    try {
+      setLoadingMore(true);
+      const nextPage = page + 1;
+      const token = await getToken();
+      
+      const { data } = await axios.get(`/api/user/get-dashboard-overview?page=${nextPage}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (data.success && data.creations.length > 0) {
+        setCreations(prev => [...prev, ...data.creations]);
+        setPage(nextPage);
+      }
+    } catch (error) {
+      toast.error("Could not load more items");
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
+  /* ---------------- EFFECTS ---------------- */
   useEffect(() => {
-    getDashboardData();
-  }, []);
+    if (isLoaded) {
+      fetchDashboard();
+      
+      // Real-time: Refresh when user returns to this tab
+      const handleFocus = () => fetchDashboard(true);
+      window.addEventListener("focus", handleFocus);
+      return () => window.removeEventListener("focus", handleFocus);
+    }
+  }, [isLoaded, fetchDashboard]);
+
+  const progress =
+    usage.ready && usage.limit > 0
+      ? Math.min((usage.used / usage.limit) * 100, 100)
+      : 0;
+
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center">
+      <Loader2 className="w-10 h-10 animate-spin text-violet-600" />
+    </div>
+  );
 
   return (
     <div className="h-full bg-white overflow-y-auto custom-scrollbar p-6 lg:p-10">
       <div className="max-w-7xl mx-auto space-y-10">
-        
-        {/* Header: Fixed Navigation */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-              Workspace Overview
-            </h1>
-            <p className="text-slate-500 mt-1">
-              Manage your AI-generated assets and subscription.
-            </p>
+            <h1 className="text-3xl font-bold text-slate-900">Workspace Overview</h1>
+            <p className="text-slate-500 mt-1">Manage your AI-generated assets and subscription.</p>
           </div>
-          <button 
-            onClick={() => navigate('/ai/generate-script')} // ✅ Fixed: SPA Navigation
+          <button
+            onClick={() => navigate("/ai/generate-script")}
             className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-violet-200"
           >
-            <Zap size={18} className="fill-current" />
-            New Creation
+            <Zap size={18} /> New Creation
           </button>
         </header>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard 
-            label="Total Creations"
-            value={creations.length}
-            icon={<History className="text-blue-600" size={20} />}
-            iconBg="bg-blue-50"
-            description="Lifetime assets"
-          />
-
-          <StatCard 
-            label="Active Plan"
-            value={
-              <Protect plan="premium" fallback="Free Plan">
-                Premium
-              </Protect>
-            }
-            icon={<Gem className="text-violet-600" size={20} />}
-            iconBg="bg-violet-50"
-            description={
-              <Protect plan="premium" fallback="Standard Features">
-                Pro Tools Unlocked
-              </Protect>
-            }
-          />
-
-          {/* ✅ FIXED: Honest Credits Stat */}
-          <StatCard 
-            label="Usage Credits"
-            value={userStats.isLoaded ? `${userStats.used} / ${userStats.limit}` : "—"}
-            icon={<CreditCard className="text-emerald-600" size={20} />}
-            iconBg="bg-emerald-50"
-            description={userStats.isLoaded ? "Monthly consumption" : "Tracking coming soon"}
-            progress={userStats.isLoaded ? (userStats.used / userStats.limit) * 100 : 0}
-          />
+          <StatCard label="Total Creations" value={totalCount} icon={<History className="text-blue-600" size={20} />} iconBg="bg-blue-50" description="Lifetime assets" />
+          <StatCard label="Active Plan" value={plan === "premium" ? "Premium" : "Free Plan"} icon={<Gem className="text-violet-600" size={20} />} iconBg="bg-violet-50" description="Plan status" />
+          <StatCard label="Usage Credits" value={plan === "premium" ? "∞" : `${usage.used}/${usage.limit}`} icon={<CreditCard className="text-emerald-600" size={20} />} iconBg="bg-emerald-50" description="Monthly usage" />
         </div>
 
-        {/* Recent Creations */}
-        <section className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <LayoutGrid size={20} className="text-slate-400" />
-              <h2 className="text-xl font-bold text-slate-900">Recent Activity</h2>
-            </div>
-            {/* ✅ FIXED: Wired "View All" */}
-            <button 
-              onClick={() => navigate('/ai/community')} // or a specific '/my-creations' route
-              className="text-sm font-semibold text-violet-600 hover:text-violet-700 flex items-center gap-1 group"
-            >
-              View Full Library 
-              <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-            </button>
+        {/* Recent Activity Section */}
+        <section className="space-y-6 pb-10">
+          <div className="flex items-center gap-2">
+            <LayoutGrid size={20} className="text-slate-400" />
+            <h2 className="text-xl font-bold text-slate-900">Recent Activity</h2>
           </div>
 
-          {loading ? (
-            <div className="h-64 flex flex-col items-center justify-center border border-slate-100 rounded-3xl">
-              <Loader2 className="w-10 h-10 animate-spin text-violet-600 mb-2" />
-            </div>
-          ) : creations.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
-              {creations.map((item) => (
-                <div key={item.id} className="group relative bg-white border border-slate-200 p-4 rounded-2xl hover:border-violet-200 transition-all shadow-sm flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {/* ✅ FIXED: Creation Type Badges */}
-                    <TypeBadge type={item.type} />
-                    
-                    <div>
-                      <h4 className="font-bold text-slate-800 line-clamp-1">{item.prompt || item.title}</h4>
-                      {/* ✅ FIXED: Time Awareness */}
-                      <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
-                        <ClockIcon size={12} />
-                        {item.createdAt ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true }) : "Recent"}
-                      </p>
-                    </div>
-                  </div>
+          <div className="grid grid-cols-1 gap-4">
+            {creations.map((item) => (
+              <CreationRow key={item.id} item={item} navigate={navigate} />
+            ))}
+          </div>
 
-                  <div className="flex items-center gap-2">
-                    {/* ✅ FIXED: Differentiate Pro content */}
-                    {item.type === 'thumbnail' && (
-                      <span className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-md bg-amber-50 text-amber-600 text-[10px] font-black uppercase border border-amber-100 mr-2">
-                         Pro
-                      </span>
-                    )}
-                    {/* Action button passed to parent wrapper */}
-                    <button onClick={() => navigate(`/view/${item.id}`)} className="p-2 hover:bg-slate-50 text-slate-400 rounded-lg">
-                      <ArrowUpRight size={18} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="h-48 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-3xl">
-              <p className="text-slate-400 text-sm italic">No creations found. Start building!</p>
+          {/* LOAD MORE BUTTON LOGIC */}
+          {creations.length < totalCount && (
+            <div className="flex justify-center mt-8">
+              <button 
+                onClick={loadMore} 
+                disabled={loadingMore}
+                className="px-6 py-2.5 border border-slate-200 rounded-xl text-slate-600 font-semibold hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {loadingMore ? <Loader2 className="animate-spin" size={18} /> : "Load More Activity"}
+              </button>
             </div>
           )}
         </section>
@@ -193,56 +152,52 @@ const Dashboard = () => {
   );
 };
 
-/* ---------------- UI SUB-COMPONENTS ---------------- */
+/* ---------------- INTERNAL COMPONENTS ---------------- */
 
-const TypeBadge = ({ type }) => {
-  const configs = {
-    script: { icon: <FileText size={16} />, color: "text-blue-600", bg: "bg-blue-50", label: "Script" },
-    thumbnail: { icon: <ImageIcon size={16} />, color: "text-amber-600", bg: "bg-amber-50", label: "Thumbnail" },
-    title: { icon: <Type size={16} />, color: "text-violet-600", bg: "bg-violet-50", label: "Title" },
-    description: { icon: <AlignLeft size={16} />, color: "text-emerald-600", bg: "bg-emerald-50", label: "Desc" },
+const StatCard = ({ label, value, icon, iconBg, description }) => (
+  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+    <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center mb-4`}>{icon}</div>
+    <p className="text-slate-500 text-xs uppercase font-medium">{label}</p>
+    <h2 className="text-2xl font-bold text-slate-900">{value}</h2>
+    <p className="text-xs text-slate-400 mt-4">{description}</p>
+  </div>
+);
+
+const CreationRow = ({ item, navigate }) => {
+  const getBadgeStyle = (type) => {
+    const normalized = type?.toLowerCase().trim() || "";
+    if (normalized.includes('script')) return { label: 'Script Generation', color: 'text-blue-600', bg: 'bg-blue-50' };
+    if (normalized.includes('thumbnail')) return { label: 'Thumbnail Design', color: 'text-amber-600', bg: 'bg-amber-50' };
+    if (normalized.includes('title')) return { label: 'Title Ideation', color: 'text-violet-600', bg: 'bg-violet-50' };
+    if (normalized.includes('description')) return { label: 'Description Copy', color: 'text-emerald-600', bg: 'bg-emerald-50' };
+    return { label: 'AI Creation', color: 'text-slate-600', bg: 'bg-slate-50' };
   };
 
-  const config = configs[type] || configs.script;
+  const style = getBadgeStyle(item.type);
 
   return (
-    <div className={`${config.bg} ${config.color} p-3 rounded-xl flex items-center justify-center shrink-0 shadow-sm`} title={config.label}>
-      {config.icon}
+    <div className="group bg-white border border-slate-200 p-4 rounded-2xl hover:border-violet-200 transition-all flex items-center justify-between">
+      <div className="flex items-center gap-4">
+        <TypeBadge type={item.type} />
+        <div>
+          <div className="flex items-center gap-2">
+            <h4 className="font-bold text-slate-800 line-clamp-1">{item.prompt}</h4>
+            <span className={`px-2 py-0.5 rounded-full ${style.bg} ${style.color} text-[10px] font-black uppercase tracking-wider border`}>{style.label}</span>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">{item.createdAt ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true }) : "Recent"}</p>
+        </div>
+      </div>
+      <button onClick={() => navigate(`/view/${item.id}`)} className="p-2.5 bg-slate-50 group-hover:bg-violet-600 group-hover:text-white text-slate-400 rounded-xl transition-all"><ArrowUpRight size={18} /></button>
     </div>
   );
 };
 
-const StatCard = ({ label, value, icon, iconBg, description, progress }) => (
-  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-    <div className="flex justify-between items-start mb-4">
-      <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center`}>
-        {icon}
-      </div>
-    </div>
-    <div className="space-y-1">
-      <p className="text-slate-500 text-xs font-medium uppercase tracking-wider">{label}</p>
-      <h2 className="text-2xl font-bold text-slate-900">{value}</h2>
-    </div>
-    
-    {progress !== undefined && progress > 0 ? (
-      <div className="mt-4 space-y-2">
-        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-          <div className="bg-violet-600 h-full transition-all duration-700" style={{ width: `${progress}%` }} />
-        </div>
-        <p className="text-[10px] text-slate-400 font-medium">{description}</p>
-      </div>
-    ) : (
-      <p className="text-[10px] text-slate-400 font-medium mt-4 italic">{description}</p>
-    )}
-  </div>
-);
-
-const ClockIcon = ({ size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-);
-
-const AlignLeft = ({ size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
-);
+const TypeBadge = ({ type }) => {
+  const normalized = type?.toLowerCase() || "";
+  const config = normalized.includes('thumbnail') ? { icon: <ImageIcon size={16}/>, color: "text-amber-600", bg: "bg-amber-50" } : 
+                 normalized.includes('title') ? { icon: <Type size={16}/>, color: "text-violet-600", bg: "bg-violet-50" } : 
+                 { icon: <FileText size={16}/>, color: "text-blue-600", bg: "bg-blue-50" };
+  return <div className={`${config.bg} ${config.color} p-3 rounded-xl shrink-0`}>{config.icon}</div>;
+};
 
 export default Dashboard;

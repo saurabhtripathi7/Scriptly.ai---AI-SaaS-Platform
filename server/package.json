@@ -7,20 +7,22 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-  "dev": "ts-node-dev --respawn --transpile-only server.ts",
-  "build": "tsc",
-  "start": "node dist/server.js"
-}
-,
+    "dev": "ts-node-dev --respawn --transpile-only server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
   "dependencies": {
     "@clerk/express": "^1.7.67",
+    "@google/genai": "^1.39.0",
+    "@google/generative-ai": "^0.24.1",
     "@neondatabase/serverless": "^1.0.2",
     "axios": "^1.13.4",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "openai": "^6.17.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
