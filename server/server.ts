@@ -46,8 +46,8 @@ app.use(requireAuth());
 app.use("/api/user", userRouter);
 app.use("/api/ai", aiRouter);
 
-const port = Number(process.env.PORT) || 4000;
+const port = process.env.PORT || 4000;
 
-app.listen(() => {
-  console.log("Scriptly.AI API is running 🚀");
+app.listen(port, "0.0.0.0", () => {
+  console.log(`App is running on port ${port}`);
 });
