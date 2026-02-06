@@ -46,7 +46,7 @@ app.use(requireAuth());
 app.use("/api/user", userRouter);
 app.use("/api/ai", aiRouter);
 
-const port = process.env.PORT || 4000;
+const port = parseInt(process.env.PORT || "4000", 10);
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`App is running on port ${port}`);
