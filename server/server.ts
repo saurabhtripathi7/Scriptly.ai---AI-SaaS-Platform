@@ -7,6 +7,17 @@ import userRouter from "./routes/userRoutes";
 
 const app = express();
 
+/* ---------------- Health endpoints (no auth, no middleware) ---------------- */
+app.get("/", (_req: Request, res: Response) => {
+  res.send("Server is live on port " + (process.env.PORT || 4000));
+});
+
+app.get("/health", (_req: Request, res: Response) => {
+  res.status(200).send("OK");
+});
+
+
+/* ---------------- Middleware ---------------- */
 app.use(cors({
   origin: [
     "http://localhost:5173",
@@ -15,37 +26,17 @@ app.use(cors({
   credentials: true
 }));
 
-
 app.use(express.json());
 
 app.use(clerkMiddleware());
 
-/* Health check */
-app.get("/", (_req: Request, res: Response) => {
-  res.send("Server is live on port " + (process.env.PORT || 4000));
-});
-
-app.head("/", (_req: Request, res: Response) => {
-  res.sendStatus(200);
-});
-
-
-/* Health endpoint for uptime monitoring */
-app.get("/health", (_req: Request, res: Response) => {
-  res.send("OK");
-});
-
-app.head("/health", (_req: Request, res: Response) => {
-  res.sendStatus(200);
-});
-
-/* All routes below require authentication */
+/* ---------------- Protected routes ---------------- */
 app.use(requireAuth());
-
 
 app.use("/api/user", userRouter);
 app.use("/api/ai", aiRouter);
 
+/* ---------------- Server start ---------------- */
 const port = parseInt(process.env.PORT || "4000", 10);
 
 app.listen(port, "0.0.0.0", () => {
